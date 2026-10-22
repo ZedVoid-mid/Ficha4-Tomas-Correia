@@ -11,6 +11,12 @@ const cards = [
   { name: "Eco do Vazio", type: "Feitiço", attack: 0, defense: 0 },
 ];
 
+function setCorsHeaders(res, origin = "http://localhost:5173") {
+  res.set("Access-Control-Allow-Origin", origin);
+  res.set("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+}
+
 function page(title, body) {
   return `<!DOCTYPE html>
 <html lang="pt">
@@ -31,6 +37,19 @@ function page(title, body) {
 </html>`;
 }
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = ["http://localhost:5173", "http://localhost:5174"];
+
+  setCorsHeaders(res, allowedOrigins.includes(origin) ? origin : "http://localhost:5173");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
 app.get("/", (req, res) => {
   res.send(page(
     "A minha coleção",
@@ -46,11 +65,27 @@ app.get("/sobre", (req, res) => {
 });
 
 app.get("/cartas", (req, res) => {
-  const items = cards
-    .map((card) => `<li><b>${card.name}</b> — ${card.type}, ataque ${card.attack}</li>`)
-    .join("");
+  const { tipo } = req.query;
+  const filteredCards = tipo && tipo !== "Todas"
+    ? cards.filter((card) => card.type === tipo)
+    : cards;
 
-  res.send(page("Cartas", `<ul>${items}</ul>`));
+  res.json(filteredCards);
+});
+
+app.get("/api/cartas", (req, res) => {
+  const { tipo } = req.query;
+  const filteredCards = tipo && tipo !== "Todas"
+    ? cards.filter((card) => card.type === tipo)
+    : cards;
+
+  res.json(filteredCards);
+});
+
+app.get("/api/cartas/aleatoria", (req, res) => {
+  const card = cards[Math.floor(Math.random() * cards.length)];
+
+  res.json(card);
 });
 
 app.get("/cartas/aleatoria", (req, res) => {
@@ -73,6 +108,7 @@ app.get("/agora", (req, res) => {
 });
 
 app.use((req, res) => {
+  setCorsHeaders(res);
   res.status(404).send(page(
     "404 — não encontrado",
     `<p>Não existe nada em <code>${req.url}</code>.</p>
